@@ -17,6 +17,18 @@ pipeline {
                 echo 'Project structure validation passed!'
             }
         }
+
+        stage('Build Backend Image') {
+            steps {
+                sh 'docker build -t ecommerce-backend:ci ./backend'
+            }
+        }
+
+        stage('Build Frontend Image') {
+            steps {
+                sh 'docker build -t ecommerce-frontend:ci ./frontend'
+            }
+        }
     }
 
     post {
