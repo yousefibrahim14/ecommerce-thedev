@@ -1,0 +1,6 @@
+aws_region        = "eu-central-1"
+project_name      = "ecommerce-lab"
+vpc_cidr          = "10.20.0.0/16"
+db_username       = "ecommerce_admin"
+db_instance_class = "db.t3.micro"
+db_storage_gb     = 20

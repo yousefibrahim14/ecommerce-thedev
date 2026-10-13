@@ -1,0 +1,112 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ecommerce-backend
+  namespace: ecommerce
+  labels:
+    app: ecommerce-backend
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: ecommerce-backend
+
+  template:
+    metadata:
+      labels:
+        app: ecommerce-backend
+
+    spec:
+      containers:
+        - name: backend
+          image: yousefebrahim10/ecommerce-backend:5
+          imagePullPolicy: Always
+
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+
+          # CPU and Memory
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
+          # Restart container if the application is unhealthy
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+          # Send traffic only when the application is ready
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+          # Non-sensitive environment variables
+          envFrom:
+            - configMapRef:
+                name: ecommerce-config
+
+          # Sensitive environment variables
+          env:
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: ecommerce-db-secret
+                  key: DB_HOST
+
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: ecommerce-db-secret
+                  key: DB_USER
+
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ecommerce-db-secret
+                  key: DB_PASSWORD
+
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: ecommerce-app-secret
+                  key: JWT_SECRET
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ecommerce-backend
+  namespace: ecommerce
+  labels:
+    app: ecommerce-backend
+
+spec:
+  type: ClusterIP
+
+  selector:
+    app: ecommerce-backend
+
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+      protocol: TCP

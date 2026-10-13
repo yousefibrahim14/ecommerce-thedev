@@ -27,3 +27,40 @@ Thumbs.db
 
 # Docker
 *.pid
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+*.auto.tfvars
+crash.log
+
+# Secrets and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Backup files
+*.bak
+*.backup
+
+# Terraform sensitive files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Terraform working directory and plans
+**/.terraform/
+*.tfplan
+
+# Secrets, certificates and backups
+*.pem
+*.key
+*.p12
+*.pfx
+*.bak
+*.backup
