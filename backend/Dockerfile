@@ -7,8 +7,14 @@ RUN npm ci --omit=dev
 
 COPY . .
 
-RUN mkdir -p /app/certs \
-    && cp /app/global-bundle.pem /app/certs/global-bundle.pem
+RUN apk add --no-cache ca-certificates curl \
+    && mkdir -p /app/certs \
+    && curl -fsSL \
+       https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem \
+       -o /app/certs/global-bundle.pem \
+    && test -s /app/certs/global-bundle.pem
+
+ENV NODE_EXTRA_CA_CERTS=/app/certs/global-bundle.pem
 
 EXPOSE 3000
 
