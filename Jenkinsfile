@@ -1,3 +1,4 @@
+```groovy
 pipeline {
     agent any
 
@@ -5,7 +6,7 @@ pipeline {
         DOCKERHUB_USER = 'yousefebrahim10'
         AWS_DEFAULT_REGION = 'eu-central-1'
         AWS_REGION = 'eu-central-1'
-        KUBECONFIG = '/tmp/eks-kubeconfig'
+        KUBECONFIG = "${WORKSPACE}/.kube/config"
         EKS_CLUSTER_NAME = 'ecommerce-lab-eks'
         K8S_NAMESPACE = 'ecommerce'
     }
@@ -21,12 +22,14 @@ pipeline {
             steps {
                 sh '''
                     set -eu
+
                     test -f docker-compose.yml
                     test -f backend/Dockerfile
                     test -f frontend/Dockerfile
                     test -f Jenkinsfile
                     test -f k8s/backend-deployment.yaml
                     test -f k8s/frontend-deployment.yaml
+
                     echo "Project validation passed!"
                 '''
             }
@@ -46,15 +49,23 @@ pipeline {
                         set -eu
                         export AWS_PAGER=""
 
+                        echo "Testing AWS authentication..."
                         aws sts get-caller-identity
 
+                        echo "Preparing kubeconfig directory..."
+                        mkdir -p "$(dirname "$KUBECONFIG")"
+
+                        echo "Updating EKS kubeconfig..."
                         aws eks update-kubeconfig \
                             --region "$AWS_DEFAULT_REGION" \
                             --name "$EKS_CLUSTER_NAME" \
                             --kubeconfig "$KUBECONFIG"
 
+                        echo "Testing Kubernetes access..."
                         kubectl get nodes
                         kubectl get deployments -n "$K8S_NAMESPACE"
+
+                        echo "EKS access test passed!"
                     '''
                 }
             }
@@ -64,6 +75,7 @@ pipeline {
             steps {
                 sh '''
                     set -eu
+
                     docker build \
                         -t ecommerce-backend:ci \
                         ./backend
@@ -75,6 +87,7 @@ pipeline {
             steps {
                 sh '''
                     set -eu
+
                     docker build \
                         -t ecommerce-frontend:ci \
                         ./frontend
@@ -103,21 +116,25 @@ pipeline {
 
                         docker tag ecommerce-backend:ci \
                             "$DH_USER/ecommerce-backend:${BUILD_NUMBER}"
+
                         docker tag ecommerce-backend:ci \
                             "$DH_USER/ecommerce-backend:latest"
 
                         docker tag ecommerce-frontend:ci \
                             "$DH_USER/ecommerce-frontend:${BUILD_NUMBER}"
+
                         docker tag ecommerce-frontend:ci \
                             "$DH_USER/ecommerce-frontend:latest"
 
                         docker push \
                             "$DH_USER/ecommerce-backend:${BUILD_NUMBER}"
+
                         docker push \
                             "$DH_USER/ecommerce-backend:latest"
 
                         docker push \
                             "$DH_USER/ecommerce-frontend:${BUILD_NUMBER}"
+
                         docker push \
                             "$DH_USER/ecommerce-frontend:latest"
 
@@ -141,43 +158,40 @@ pipeline {
                         set -eu
                         export AWS_PAGER=""
 
-                        echo "Refreshing EKS kubeconfig..."
+                        echo "Preparing kubeconfig directory..."
+                        mkdir -p "$(dirname "$KUBECONFIG")"
 
+                        echo "Refreshing EKS kubeconfig..."
                         aws eks update-kubeconfig \
                             --region "$AWS_DEFAULT_REGION" \
                             --name "$EKS_CLUSTER_NAME" \
                             --kubeconfig "$KUBECONFIG"
 
-                        echo "Deploying backend image ${BUILD_NUMBER}..."
-
+                        echo "Deploying backend image..."
                         kubectl set image \
                             deployment/ecommerce-backend \
                             backend="$DOCKERHUB_USER/ecommerce-backend:${BUILD_NUMBER}" \
                             -n "$K8S_NAMESPACE"
 
-                        echo "Deploying frontend image ${BUILD_NUMBER}..."
-
+                        echo "Deploying frontend image..."
                         kubectl set image \
                             deployment/ecommerce-frontend \
                             frontend="$DOCKERHUB_USER/ecommerce-frontend:${BUILD_NUMBER}" \
                             -n "$K8S_NAMESPACE"
 
                         echo "Waiting for backend rollout..."
-
                         kubectl rollout status \
                             deployment/ecommerce-backend \
                             -n "$K8S_NAMESPACE" \
                             --timeout=180s
 
                         echo "Waiting for frontend rollout..."
-
                         kubectl rollout status \
                             deployment/ecommerce-frontend \
                             -n "$K8S_NAMESPACE" \
                             --timeout=180s
 
-                        echo "Final deployment status:"
-
+                        echo "Final deployment status..."
                         kubectl get deployments,pods \
                             -n "$K8S_NAMESPACE"
 
@@ -202,3 +216,4 @@ pipeline {
         }
     }
 }
+```
