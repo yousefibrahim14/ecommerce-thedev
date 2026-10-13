@@ -26,11 +26,37 @@ pipeline {
                     test -f backend/Dockerfile
                     test -f frontend/Dockerfile
                     test -f Jenkinsfile
+                    test -f backend/package.json
+                    test -f backend/package-lock.json
+                    test -f backend/tests/health.test.js
+                    test -f backend/tests/products.test.js
                     test -f k8s/backend-deployment.yaml
                     test -f k8s/frontend-deployment.yaml
 
                     echo "Project validation passed!"
                 '''
+            }
+        }
+
+        stage('Test Backend') {
+            steps {
+                dir('backend') {
+                    sh '''
+                        set -eu
+
+                        echo "Checking Node.js and npm..."
+                        node --version
+                        npm --version
+
+                        echo "Installing backend dependencies..."
+                        npm ci
+
+                        echo "Running backend automated tests..."
+                        npm test
+
+                        echo "Backend tests passed!"
+                    '''
+                }
             }
         }
 
@@ -215,4 +241,3 @@ pipeline {
         }
     }
 }
-
