@@ -1,4 +1,3 @@
-
 pipeline {
     agent any
 
@@ -26,6 +25,8 @@ pipeline {
                     test -f backend/Dockerfile
                     test -f frontend/Dockerfile
                     test -f Jenkinsfile
+                    test -f k8s/backend-deployment.yaml
+                    test -f k8s/frontend-deployment.yaml
                     echo "Project validation passed!"
                 '''
             }
@@ -43,17 +44,15 @@ pipeline {
                     sh '''
                         set +x
                         set -eu
+                        export AWS_PAGER=""
 
-                        echo "Testing AWS authentication..."
                         aws sts get-caller-identity
 
-                        echo "Refreshing EKS kubeconfig..."
                         aws eks update-kubeconfig \
                             --region "$AWS_DEFAULT_REGION" \
                             --name "$EKS_CLUSTER_NAME" \
                             --kubeconfig "$KUBECONFIG"
 
-                        echo "Testing Kubernetes access..."
                         kubectl get nodes
                         kubectl get deployments -n "$K8S_NAMESPACE"
                     '''
@@ -127,11 +126,71 @@ pipeline {
                 }
             }
         }
+
+        stage('Deploy to EKS') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'aws-ecommerce-admin',
+                        usernameVariable: 'AWS_ACCESS_KEY_ID',
+                        passwordVariable: 'AWS_SECRET_ACCESS_KEY'
+                    )
+                ]) {
+                    sh '''
+                        set +x
+                        set -eu
+                        export AWS_PAGER=""
+
+                        echo "Refreshing EKS kubeconfig..."
+
+                        aws eks update-kubeconfig \
+                            --region "$AWS_DEFAULT_REGION" \
+                            --name "$EKS_CLUSTER_NAME" \
+                            --kubeconfig "$KUBECONFIG"
+
+                        echo "Deploying backend image ${BUILD_NUMBER}..."
+
+                        kubectl set image \
+                            deployment/ecommerce-backend \
+                            backend="$DOCKERHUB_USER/ecommerce-backend:${BUILD_NUMBER}" \
+                            -n "$K8S_NAMESPACE"
+
+                        echo "Deploying frontend image ${BUILD_NUMBER}..."
+
+                        kubectl set image \
+                            deployment/ecommerce-frontend \
+                            frontend="$DOCKERHUB_USER/ecommerce-frontend:${BUILD_NUMBER}" \
+                            -n "$K8S_NAMESPACE"
+
+                        echo "Waiting for backend rollout..."
+
+                        kubectl rollout status \
+                            deployment/ecommerce-backend \
+                            -n "$K8S_NAMESPACE" \
+                            --timeout=180s
+
+                        echo "Waiting for frontend rollout..."
+
+                        kubectl rollout status \
+                            deployment/ecommerce-frontend \
+                            -n "$K8S_NAMESPACE" \
+                            --timeout=180s
+
+                        echo "Final deployment status:"
+
+                        kubectl get deployments,pods \
+                            -n "$K8S_NAMESPACE"
+
+                        echo "EKS deployment completed successfully!"
+                    '''
+                }
+            }
+        }
     }
 
     post {
         success {
-            echo 'CI pipeline completed successfully!'
+            echo 'CI/CD pipeline completed successfully!'
         }
 
         failure {
@@ -143,4 +202,3 @@ pipeline {
         }
     }
 }
-
