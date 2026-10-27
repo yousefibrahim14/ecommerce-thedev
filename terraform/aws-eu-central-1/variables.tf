@@ -50,7 +50,7 @@ variable "eks_kubernetes_version" {
 variable "eks_api_allowed_cidr" {
   description = "Public IP CIDR allowed to access the EKS API"
   type        = string
-  default     = "156.199.5.32/32"
+  default     = "156.198.228.37/32"
 
   validation {
     condition     = can(cidrhost(var.eks_api_allowed_cidr, 0))

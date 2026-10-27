@@ -90,11 +90,11 @@ resource "aws_eks_node_group" "main" {
   node_group_name = "${var.project_name}-workers"
   node_role_arn   = aws_iam_role.eks_node.arn
 
-  # Public subnets are used only for this lab design.
-  subnet_ids = aws_subnet.public[*].id
+  # private subnets are used only for this lab design.
+  subnet_ids = aws_subnet.private[*].id
 
   capacity_type  = "ON_DEMAND"
-  instance_types = ["t3.small"]
+  instance_types = ["m7i-flex.large"]
   ami_type       = "AL2023_x86_64_STANDARD"
   disk_size      = 20
 
